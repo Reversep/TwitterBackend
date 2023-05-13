@@ -1,6 +1,8 @@
 from django.db import models
-
+from PIL import Image, ImageDraw, ImageFont
+from django.core.files import File
 from accounts.models import User
+import io
 
 
 class Tweet(models.Model):
@@ -44,6 +46,28 @@ def tweet_image_store(instance, filename):
 class TweetImage(models.Model):
     tweet = models.ForeignKey(Tweet, on_delete=models.CASCADE)
     image = models.ImageField(upload_to=tweet_image_store)
+
+    def save(self, *args, **kwargs):
+        image = Image.open(self.image)
+
+        #изменен размера под стат ширину
+        w, h = image.size
+        new_width = 400
+        new_height = int(new_width * h / w)
+        image = image.resize((new_width, new_height))
+
+        # надпись на картинке
+        text = self.tweet.user.username
+        font = ImageFont.truetype('Sathu.ttf', size=32)
+        text_image = ImageDraw.Draw(image)
+        text_image.text((20, 20), text, font=font)
+
+
+        image_io = io.BytesIO()
+        image.save('my_image.png', 'png')
+        image.save(image_io, 'png')
+        self.image = File(image_io, 'my_image.png')
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'image for {self.tweet.id}'
